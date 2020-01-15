@@ -1,9 +1,11 @@
+const isEqual = require('lodash.isequal');
+
 function setState(store, newState, afterUpdateCallback) {
   store.state = { ...store.state, ...newState };
   store.listeners.forEach((listener) => {
     listener.run(store.state);
   });
-  afterUpdateCallback && afterUpdateCallback();
+  afterUpdateCallback && afterUpdateCallback(store.state, newState);
 }
 
 function useCustom(store, React, mapState, mapActions) {
@@ -19,7 +21,7 @@ function useCustom(store, React, mapState, mapActions) {
     newListener.run = mapState
       ? newState => {
           const mappedState = mapState(newState);
-          if (mappedState !== newListener.oldState) {
+          if (!isEqual(mappedState, newListener.oldState)) {
             newListener.oldState = mappedState;
             originalHook(mappedState);
           }
