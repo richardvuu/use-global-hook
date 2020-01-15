@@ -8,9 +8,13 @@ function setState(store, newState, afterUpdateCallback) {
   afterUpdateCallback && afterUpdateCallback(store.state, newState);
 }
 
+function getState(store, selector) {
+  return selector ? selector(store.state) : store.state;
+}
+
 function useCustom(store, React, mapState, mapActions) {
   const [, originalHook] = React.useState(Object.create(null));
-  const state = mapState ? mapState(store.state) : store.state;
+  const state = getState(store, mapState);
   const actions = React.useMemo(
     () => (mapActions ? mapActions(store.actions) : store.actions),
     [mapActions, store.actions]
@@ -20,7 +24,7 @@ function useCustom(store, React, mapState, mapActions) {
     const newListener = { oldState: {} };
     newListener.run = mapState
       ? newState => {
-          const mappedState = mapState(newState);
+          const mappedState = getState(store, mapState);
           if (!isEqual(mappedState, newListener.oldState)) {
             newListener.oldState = mappedState;
             originalHook(mappedState);
@@ -51,12 +55,19 @@ function associateActions(store, actions) {
   return associatedActions;
 }
 
-const useStore = (React, initialState, actions, initializer) => {
+function useStore (React, initialState = {}, actions = {}, initializer = null) {
   const store = { state: initialState, listeners: [] };
   store.setState = setState.bind(null, store);
+  store.getState = getState.bind(null, store);
   store.actions = associateActions(store, actions);
-  if (initializer) initializer(store);
-  return useCustom.bind(null, store, React);
+  if (initializer) {
+    initializer(store);
+  }
+  const hook = useCustom.bind(null, store, React);
+  hook.setState = store.setState;
+  hook.getState = store.getState;
+  hook.actions = store.actions;
+  return hook;
 };
 
-export default useStore;
+module.exports = useStore;
